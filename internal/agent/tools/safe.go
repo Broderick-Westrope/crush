@@ -54,6 +54,35 @@ var safeCommands = []string{
 	"git tag",
 }
 
+// containsCommandChaining reports whether s contains shell metacharacters
+// that enable command chaining or substitution (&&, |, ||, ;, backticks,
+// $(...), and standalone & not part of a redirect).
+func containsCommandChaining(s string) bool {
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case ';', '`':
+			return true
+		case '|':
+			return true
+		case '&':
+			if i+1 < len(s) && s[i+1] == '&' {
+				return true // &&
+			}
+			// Standalone &: not a redirect (>... or ...>).
+			precededByGT := i > 0 && s[i-1] == '>'
+			followedByGT := i+1 < len(s) && s[i+1] == '>'
+			if !precededByGT && !followedByGT {
+				return true
+			}
+		case '$':
+			if i+1 < len(s) && s[i+1] == '(' {
+				return true // $(
+			}
+		}
+	}
+	return false
+}
+
 func init() {
 	if runtime.GOOS == "windows" {
 		safeCommands = append(
